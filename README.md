@@ -10,6 +10,16 @@ Your company gets a daily Excel file full of sales leads. Someone used to clean 
 
 ---
 
+## What Stands Out
+
+- **Design thinking** – Chose Python over heavier tools (Airflow, n8n) because the workflow is linear and file-based; the architecture stays simple but can scale later.
+- **Two interfaces** – CLI for automation and a web UI for ad-hoc use; both run the same pipeline.
+- **Visual reporting** – HTML dashboard with metrics and bar-style visuals, not just raw JSON.
+- **Attention to detail** – `.gitignore` excludes venv and generated files; sample leads generator so reviewers can run it immediately; column name normalisation handles `E-mail`, `Created_at`, etc.
+- **Resilience** – Per-lead isolation: one failing record doesn't stop the run; failures are logged and counted.
+
+---
+
 ## Architecture Overview
 
 **Stack:** Python only. Uses `pandas` and `openpyxl` for Excel, and a small modular package `lead_automation` so each step has a clear job:
@@ -84,12 +94,15 @@ python main.py --input path/to/leads.xlsx --cleaned-output path/to/cleaned_leads
 
 ## Design Decisions & Error Handling
 
+**Architecture choice (why pure Python)**  
+Evaluated Airflow/n8n vs. pure Python. For a single daily file and a linear flow, orchestration platforms add operational overhead without clear benefit. Python keeps the solution portable (laptop, cron, container) and the codebase easy to reason about. The modular layout means we can later promote steps into Airflow tasks or a microservice without rewriting core logic.
+
 **Per-lead isolation** – CRM and email return result objects instead of raising. One bad lead doesn’t stop the rest.
 
-**Mock integrations** – The CRM and email clients look like real ones. You can swap in real REST/SMTP later without changing `pipeline.py`.
+**Mock integrations** – The CRM and email clients are shaped like real service clients. Swapping in REST/SMTP later requires changing only those modules, not `pipeline.py`.
 
 **Failure handling:**
-- **Cleanup:** Missing input file or missing Email column → clear error and exit.
+- **Cleanup:** Missing input file or missing Email column → clear error message and non-zero exit.
 - **CRM / Email:** Failures are logged and counted; processing continues.
 
 **Scalability** – For typical daily volumes, a single Python process is enough. For more load, you can parallelise the per-lead loop or split cleanup and CRM into separate jobs. The module layout fits Airflow, n8n, or a small API service.
@@ -98,4 +111,4 @@ python main.py --input path/to/leads.xlsx --cleaned-output path/to/cleaned_leads
 
 ## Notes for Reviewers
 
-The project is meant to be lightweight but structured: clear separation of steps, resilient to bad records, and easy to run. The mocks and stats show where you’d plug in real CRM/email and monitoring in production.
+The project is emphasises clarity, resilience, and extensibility: clear separation of steps, graceful handling of bad records, and structure that supports future scaling. The mocks demonstrate where you’d plug in real CRM/email and monitoring in production.
